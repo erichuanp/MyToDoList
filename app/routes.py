@@ -8,9 +8,6 @@ bp = Blueprint('routes', __name__)
 @bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({"message": "User already exists"}), 400
-
     new_user = User(username=data['username'], password=data['password'])
     db.session.add(new_user)
     db.session.commit()
