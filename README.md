@@ -1,1 +1,1 @@
-It's a practice project including frontend, backend, and database. 
+It's a practice project MyToDoList backend. 
