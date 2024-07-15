@@ -15,7 +15,7 @@ def create_app():
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    from . import routes
-    app.register_blueprint(routes.bp)
+    from .routes import bp
+    app.register_blueprint(bp)
 
     return app

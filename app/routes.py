@@ -33,7 +33,9 @@ def get_tasks():
 @jwt_required()
 def create_task():
     data = request.get_json()
+    print("Received task data:", data)
     user_id = get_jwt_identity()
+    print("Authenticated user ID:", user_id)
     new_task = Task(
         title=data['title'],
         description=data['description'],
@@ -43,6 +45,7 @@ def create_task():
     )
     db.session.add(new_task)
     db.session.commit()
+    print("Task created successfully")
     return jsonify(new_task.to_dict()), 201
 
 @bp.route('/tasks/<int:id>', methods=['PUT'])
