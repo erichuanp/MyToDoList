@@ -3,8 +3,15 @@ from . import db
 from .models import User, Task
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 import logging
+import re
 
 bp = Blueprint('routes', __name__)
+
+def validate_username(username):
+    return re.match("^[a-zA-Z0-9_]{3,30}$", username)
+
+def validate_password(password):
+    return len(password) >= 6
 
 @bp.route('/register', methods=['POST'])
 def register():
@@ -12,6 +19,9 @@ def register():
     if not data or not data.get('username') or not data.get('password'):
         return jsonify({"message": "Invalid input"}), 400
     
+    if not validate_username(data['username']) or not validate_password(data['password']):
+        return jsonify({"message": "Invalid username or password format"}), 400
+
     if User.query.filter_by(username=data['username']).first():
         return jsonify({"message": "User already exists"}), 400
     
@@ -22,8 +32,6 @@ def register():
     logging.info(f"New user registered: {data['username']}")
     return jsonify({"message": "User registered successfully!"}), 201
 
-
-
 @bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -33,7 +41,6 @@ def login():
         logging.info(f"User logged in: {data['username']}")
         return jsonify(access_token=access_token), 200
     return jsonify({"message": "Invalid credentials"}), 401
-
 
 @bp.route('/tasks', methods=['GET'])
 @jwt_required()
@@ -103,4 +110,3 @@ def delete_account():
         return jsonify({"message": "Account deleted successfully!"}), 200
     else:
         return jsonify({"message": "Invalid credentials"}), 401
-
