@@ -15,22 +15,25 @@ def register():
     if User.query.filter_by(username=data['username']).first():
         return jsonify({"message": "User already exists"}), 400
     
-    new_user = User(username=data['username'], password=data['password'])
+    new_user = User(username=data['username'])
+    new_user.set_password(data['password'])
     db.session.add(new_user)
     db.session.commit()
     logging.info(f"New user registered: {data['username']}")
     return jsonify({"message": "User registered successfully!"}), 201
 
 
+
 @bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     user = User.query.filter_by(username=data['username']).first()
-    if user and user.password == data['password']:
+    if user and user.check_password(data['password']):
         access_token = create_access_token(identity=user.id)
         logging.info(f"User logged in: {data['username']}")
         return jsonify(access_token=access_token), 200
     return jsonify({"message": "Invalid credentials"}), 401
+
 
 @bp.route('/tasks', methods=['GET'])
 @jwt_required()
@@ -92,7 +95,7 @@ def delete_account():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
-    if user and user.username == data['username'] and user.password == data['password']:
+    if user and user.username == data['username'] and user.check_password(data['password']):
         Task.query.filter_by(user_id=user_id).delete()
         db.session.delete(user)
         db.session.commit()
@@ -100,3 +103,4 @@ def delete_account():
         return jsonify({"message": "Account deleted successfully!"}), 200
     else:
         return jsonify({"message": "Invalid credentials"}), 401
+
