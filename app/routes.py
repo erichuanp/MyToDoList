@@ -2,16 +2,25 @@ from flask import Blueprint, request, jsonify
 from . import db
 from .models import User, Task
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+import logging
 
 bp = Blueprint('routes', __name__)
 
 @bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
+    if not data or not data.get('username') or not data.get('password'):
+        return jsonify({"message": "Invalid input"}), 400
+    
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({"message": "User already exists"}), 400
+    
     new_user = User(username=data['username'], password=data['password'])
     db.session.add(new_user)
     db.session.commit()
+    logging.info(f"New user registered: {data['username']}")
     return jsonify({"message": "User registered successfully!"}), 201
+
 
 @bp.route('/login', methods=['POST'])
 def login():
@@ -19,6 +28,7 @@ def login():
     user = User.query.filter_by(username=data['username']).first()
     if user and user.password == data['password']:
         access_token = create_access_token(identity=user.id)
+        logging.info(f"User logged in: {data['username']}")
         return jsonify(access_token=access_token), 200
     return jsonify({"message": "Invalid credentials"}), 401
 
@@ -33,9 +43,7 @@ def get_tasks():
 @jwt_required()
 def create_task():
     data = request.get_json()
-    print("Received task data:", data)
     user_id = get_jwt_identity()
-    print("Authenticated user ID:", user_id)
     new_task = Task(
         title=data['title'],
         description=data['description'],
@@ -45,7 +53,7 @@ def create_task():
     )
     db.session.add(new_task)
     db.session.commit()
-    print("Task created successfully")
+    logging.info(f"Task created for user {user_id}: {data['title']}")
     return jsonify(new_task.to_dict()), 201
 
 @bp.route('/tasks/<int:id>', methods=['PUT'])
@@ -58,6 +66,7 @@ def update_task(id):
     task.priority = data['priority']
     task.due_date = data['due_date']
     db.session.commit()
+    logging.info(f"Task updated for user {task.user_id}: {data['title']}")
     return jsonify(task.to_dict()), 200
 
 @bp.route('/tasks/<int:id>', methods=['DELETE'])
@@ -66,4 +75,28 @@ def delete_task(id):
     task = Task.query.get_or_404(id)
     db.session.delete(task)
     db.session.commit()
+    logging.info(f"Task deleted for user {task.user_id}: {task.title}")
     return jsonify({"message": "Task deleted"}), 200
+
+@bp.route('/profile', methods=['GET'])
+@jwt_required()
+def profile():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    return jsonify(user_id=user.id, username=user.username), 200
+
+@bp.route('/delete_account', methods=['DELETE'])
+@jwt_required()
+def delete_account():
+    data = request.get_json()
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if user and user.username == data['username'] and user.password == data['password']:
+        Task.query.filter_by(user_id=user_id).delete()
+        db.session.delete(user)
+        db.session.commit()
+        logging.info(f"User account deleted: {user.username}")
+        return jsonify({"message": "Account deleted successfully!"}), 200
+    else:
+        return jsonify({"message": "Invalid credentials"}), 401
