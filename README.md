@@ -1,1 +1,2 @@
-It's a practice project MyToDoList backend. 
+Project MyToDoList. 
+Prime Compiler Software LLC
