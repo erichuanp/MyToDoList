@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from . import db
 from .models import User, Task
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_wtf.csrf import generate_csrf
 import logging
 import re
 
@@ -16,20 +17,25 @@ def validate_password(password):
 @bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
+    current_app.logger.info(f"Received registration data: {data}")
+
     if not data or not data.get('username') or not data.get('password'):
+        current_app.logger.error("Invalid input")
         return jsonify({"message": "Invalid input"}), 400
     
     if not validate_username(data['username']) or not validate_password(data['password']):
+        current_app.logger.error("Invalid username or password format")
         return jsonify({"message": "Invalid username or password format"}), 400
 
     if User.query.filter_by(username=data['username']).first():
+        current_app.logger.error("User already exists")
         return jsonify({"message": "User already exists"}), 400
     
     new_user = User(username=data['username'])
     new_user.set_password(data['password'])
     db.session.add(new_user)
     db.session.commit()
-    logging.info(f"New user registered: {data['username']}")
+    current_app.logger.info(f"New user registered: {data['username']}")
     return jsonify({"message": "User registered successfully!"}), 201
 
 @bp.route('/login', methods=['POST'])
@@ -110,3 +116,8 @@ def delete_account():
         return jsonify({"message": "Account deleted successfully!"}), 200
     else:
         return jsonify({"message": "Invalid credentials"}), 401
+
+@bp.route('/csrf-token', methods=['GET'])
+def get_csrf_token():
+    token = generate_csrf()
+    return jsonify({'csrf_token': token})
